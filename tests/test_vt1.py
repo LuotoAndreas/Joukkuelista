@@ -11,13 +11,13 @@ def test_jarjestaLeimaustavat(client):
     global data
     url = "/jarjestaLeimaustavat"
 
-    leimaustavat = {"leimaustavat": json.dumps(data["leimaustavat"])}
+    leimaustavat = {"ltavat": json.dumps(data["leimaustavat"])}
     response = client.post(url, data=leimaustavat)
     #jos tulee virhekoodi, ei tarkisteta pitemmälle
     assert 200 == response.status_code, "Kaatuu heti"
     assert b'["GPS", "Lomake", "NFC", "QR"]' == response.data, 'Leimaustavat eivät ole järjestyksessä : ' + response.data.decode("UTF-8")
 
-    leimaustavat = {"leimaustavat": json.dumps(["gps", "LOMAKE", " nfc", "QR"])}
+    leimaustavat = {"ltavat": json.dumps(["gps", "LOMAKE", " nfc", "QR"])}
     response = client.post(url, data=leimaustavat)
     assert b'["gps", "LOMAKE", " nfc", "QR"]' == response.data, "Järjestäminen ei ole caseinsensitive eikä huomioi alussa olevaa whitespacea : " + response.data.decode("UTF-8")
 
@@ -52,7 +52,7 @@ def test_lisaaSarja(client):
     url = "/lisaaSarja"
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foobar",
         "kesto": "10",
         "alkuaika": "2023-01-01 10:30:30",
@@ -65,7 +65,7 @@ def test_lisaaSarja(client):
         assert len(data["sarjat"]) != len(json.loads(response.data.decode("UTF-8"))), "Lisäystä ei tehty : " + response.data.decode("UTF-8")
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foobar",
         "kesto": "10",
         "alkuaika": "2023-01-01 10f",
@@ -75,7 +75,7 @@ def test_lisaaSarja(client):
     assert 422 == response.status_code, "Kaatuu, jos alkuaika tai loppuaika on väärää muotoa"
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "   ",
         "kesto": "10",
         "alkuaika": "2023-01-01 10:30:00",
@@ -87,7 +87,7 @@ def test_lisaaSarja(client):
         assert len(data["sarjat"]) == len( json.loads(response.data.decode("UTF-8"))) , "Lisäys tehtiin vaikka sarjan nimi on pelkkää whitespacea : " + response.data.decode("UTF-8")
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foobar",
         "kesto": "a",
         "alkuaika": "2023-01-01 10:30:00",
@@ -97,7 +97,7 @@ def test_lisaaSarja(client):
     assert 422 == response.status_code, "Kaatuu, jos kesto ei olekkaan numero"
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foobar",
         "kesto": "10",
         "alkuaika": "2023-03-01 10:30:00",
@@ -110,7 +110,7 @@ def test_lisaaSarja(client):
 
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "2H",
         "kesto": "10",
         "alkuaika": "2023-01-01 10:30:00",
@@ -122,7 +122,7 @@ def test_lisaaSarja(client):
         assert len(data["sarjat"]) == len( json.loads(response.data.decode("UTF-8"))) , "Lisäys tehtiin vaikka samanniminen sarja löytyy : 2H"
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foofoo",
         "kesto": "-5",
         "alkuaika": "2023-01-01 10:30:00",
@@ -134,7 +134,7 @@ def test_lisaaSarja(client):
         assert len(data["sarjat"]) == len( json.loads(response.data.decode("UTF-8"))) , "Lisäys tehtiin vaikka kesto on negatiivinen luku : -5"
 
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foofoo",
         "kesto": "0",
         "alkuaika": "2023-01-01 10:30:00",
@@ -148,7 +148,7 @@ def test_lisaaSarja(client):
 
     #lisätään useampi
     reqdata = {
-        "sarjat": json.dumps(data["sarjat"]),
+        "sarjalista": json.dumps(data["sarjat"]),
         "nimi": "foofoo",
         "kesto": "1",
         "alkuaika": "2023-01-01 10:30:00",
@@ -157,7 +157,7 @@ def test_lisaaSarja(client):
     response = client.post(url, data=reqdata)
     sarjat = response.data.decode("UTF-8")
     reqdata = {
-        "sarjat": sarjat,
+        "sarjalista": sarjat,
         "nimi": "foofoo1",
         "kesto": "1",
         "alkuaika": "2023-01-01 10:30:00",
@@ -166,7 +166,7 @@ def test_lisaaSarja(client):
     response = client.post(url, data=reqdata)
     sarjat = response.data.decode("UTF-8")
     reqdata = {
-        "sarjat": sarjat,
+        "sarjalista": sarjat,
         "nimi": "foofoo2",
         "kesto": "1",
         "alkuaika": "2023-01-01 10:30:00",
