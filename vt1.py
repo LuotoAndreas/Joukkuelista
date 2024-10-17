@@ -39,11 +39,20 @@ def jarjestaLeimaustavat():
           Response-objektin, jonka sisältö on aakkosjärjestetty lista leimaustavoista JSON-muodossa
           mediatyypin on oltava "application/json"
     """
+    try:
+        if "ltavat" not in request.form:
+            return Response("Error, virhe ladatessa leimaustapoja", mimetype="text/plain"), 422
+        
+        leimaustavat = json.loads(request.form["ltavat"])
 
-    leimaustavat = json.loads(request.form["ltavat"])
-    return Response("Virhetilanne 400", mimetype="text/plain"), 400
+        jarjestetytLeimaustavat = sorted(leimaustavat, key=str.casefold)
+        
+        return Response(json.dumps(jarjestetytLeimaustavat), mimetype="application/json")
+        
+    except (KeyError, json.JSONDecodeError):
+        return Response("Leimaustavat olivat väärässä muodossa", mimetype="text/plain"), 400
 
-    return Response(json.dumps(leimaustavat), mimetype="application/json")
+    
 
 @app.route('/jarjestaSarjat', methods = ['POST', 'GET'])
 def jarjestaSarjat():
@@ -69,7 +78,23 @@ def jarjestaSarjat():
           mediatyypin on oltava "application/json"
     """
 
-    return Response(request.form["sarjat"], mimetype="application/json")
+    try:
+        if "sarjat" not in request.form:
+            print("Error: sarjat eivät ole oikeassa muodossa")
+            return Response("Error, sarjat eivät ole saatavilla", mimetype="text/plain"), 400
+
+        sarjat = json.loads(request.form["sarjat"])
+
+        if not isinstance(sarjat, list):
+            return Response("Error, sarjat eivät ole listana", mimetype="text/plain"), 400
+
+        jarjestetytSarjat = sorted(sarjat, key=lambda x: (len(x['nimi'].strip()), x['nimi'].strip().lower()))
+        return Response(json.dumps(jarjestetytSarjat), mimetype=("application/json"))
+
+    except (KeyError, json.JSONDecodeError):
+        print("Virhe: Sarjat olivat väärässä muodossa JSON-dekoodauksen aikana.")
+        return Response("Sarjat olivat väärässä muodossa", mimetype="text/plain"), 400
+  
 
 
 
@@ -117,13 +142,65 @@ def lisaaSarja():
           Response-objektin, jonka sisältö on muutettu tai muuttumaton sarjalista JSON-muodossa
           mediatyypin on oltava "application/json"
     """
+    try:
+        required_fields = ["sarjalista", "nimi", "kesto", "alkuaika", "loppuaika"]
+        for field in required_fields:
+            if field not in request.form:
+                print("Error: fieldi puuttuu")
+                return Response("Error, kyseinen fieldi puuttuu", mimetype="text/plain"), 400
 
+        if int(request.form["kesto"]) <= 0:
+            return Response("Error, kesto ei validi", mimetype="text/plain"), 422
+        
+        alkuaika = request.form["alkuaika"]
+        loppuaika = request.form["loppuaika"]
 
-    return Response(request.form["sarjalista"], mimetype="application/json")
+        if alkuaika:
+            try: 
+                alkuaika = datetime.strptime(alkuaika, '%y-%m-%d %H:%M:%S')
+            except ValueError:
+                return Response("Error, alkuaika väärässä muodossa", mimetype="text/plain"), 422  
+                  
+        if loppuaika: 
+            try: 
+                loppuaika = datetime.strptime(loppuaika, '%y-%m-%d %H:%M:%S')       
+            except ValueError:
+                return Response("Error, loppuaika väärässä muodossa", mimetype="text/plain"), 422
+        
+        if alkuaika and loppuaika and loppuaika <= alkuaika:
+            return Response("Error, loppuajan oltava suurempi kuin alkuajan", mimetype="text/plain"), 422
+            
+       
+        print("Sarjalista:" , request.form["sarjalista"])
+        sarjalista = json.loads(request.form["sarjalista"])
+        nimi = request.form["nimi"].strip().lower()
+
+        for sarja in sarjalista:
+            if sarja["nimi"].strip().lower() == nimi:
+                return Response("Error, sarjan nimi on jo olemassa", mimetype="text/plain"), 422
+                
+        
+        sarjaUusi = {
+            "nimi": request.form["nimi"].strip(),
+            "kesto": int(request.form["kesto"]),
+            "alkuaika": alkuaika,
+            "loppuaika": loppuaika,
+            "id": max(sarja["id"] for sarja in sarjalista) + 1
+            }
+        
+        sarjalista.append(sarjaUusi)
+        
+        return Response(json.dumps(sarjalista), mimetype=("application/json"))
+    
+    except (KeyError, json.JSONDecodeError):
+        print("Virhe: Sarjat olivat väärässä muodossa JSON-dekoodauksen aikana.")
+        return Response("Sarjat olivat väärässä muodossa", mimetype="text/plain"), 400
 
 @app.route('/poistaJoukkue', methods = ['POST', 'GET'])
 def poistaJoukkue():
     """
+
+    muista alustaa se homma python -m flask run mutta joka päivä piti tehdä se joku komento ennen ehkä set FLASK_APP=vt1.py
     TASO 1
 
     Poistaa joukkueen
@@ -143,9 +220,36 @@ def poistaJoukkue():
           Response-objektin, jonka sisältö on muutettu tai muuttumaton joukkuelista JSON-muodossa.
           mediatyypin on oltava "application/json"
     """
+    try:
+        
+        if "joukkuelista" not in request.form:
+            return Response("Error, joukkuelistan lataaminen epäonnistui", mimetype="text/plain"), 422
 
+        joukkuelista = json.loads(request.form["joukkuelista"])
+        
+        if "id" not in request.form:
+            return Response("Error, Id:tä ei löytynyt", mimetype="text/plain")                    
+        
+        id = int(request.form["id"])
 
-    return Response(request.form["joukkuelista"], mimetype="application/json")
+        poistettavaJoukkue = None
+        for joukkue in joukkuelista:
+            try: 
+                if joukkue["id"] == id:
+                    poistettavaJoukkue = joukkue
+                    break
+            except:
+                return Response("Error, id:tä ei löytynyt joukkuelistasta", mimetype="text/plain"), 422
+        
+        if poistettavaJoukkue is not None:
+            joukkuelista.remove(poistettavaJoukkue)
+        else: 
+            return Response("Error, joukkueen id:tä ei löytynyt joukkuelistasta", mimetype="text/plain"), 422
+
+        return Response(json.dumps(joukkuelista), mimetype=("application/json"))    
+
+    except Exception as e:
+        return Response(f"Error, joukkueen poistaminen epäonnistui: {str(e)}", mimetype="text/plain"), 422
 
 
 @app.route('/jarjestaRastit', methods = ['POST', 'GET'])
