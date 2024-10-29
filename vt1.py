@@ -473,12 +473,14 @@ def laskeAika(joukkue):
         lahtoRastinKoodi = None
         maaliRastinKoodi = None
 
+        # etsitään rasteista lahtoa ja maalia vastaava id
         for rastinId, rasti in rastit.items():
             if rasti["koodi"] == haluttuLahto_rasti:
                 lahtoRastinKoodi = str(rastinId)
             if rasti["koodi"] == haluttuMaali_rasti:
                 maaliRastinKoodi = str(rastinId)
 
+        # etsitään rastileimausten viimeisin lähtöaika ja ensimmäisin maaliintuloaika
         for leimaus in joukkue["rastileimaukset"]:
             try:
                 koodi = str(leimaus["rasti"]) 
@@ -580,7 +582,6 @@ def jarjestaJoukkueet():
             return Response(json.dumps({"error": "virheellinen JSON-data"}), mimetype="application/json"), 400
 
         jarjestetytJoukkueet = sorted(joukkueet, key=lambda joukkue: joukkue["nimi"].strip().lower())
-        print("joukkueita on: ", len(jarjestetytJoukkueet))
 
         for joukkue in jarjestetytJoukkueet:
             laskeAika(joukkue)
