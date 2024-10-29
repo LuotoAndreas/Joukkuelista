@@ -377,7 +377,6 @@ def lisaaJoukkue():
         sarja = int(request.form["sarja"])
         leimaustavat = json.loads(request.form["leimaustavat"])       
         jasenet = json.loads(request.form["jasenet"])
-        # print("leimaustavat: ", leimaustavat)
 
         for joukkue in data["joukkueet"]:
             joukkue_nimi = joukkue["nimi"].strip()
@@ -445,51 +444,6 @@ def lisaaJoukkue():
 
 
 
-def tarkistaData(joukkue, rastit):
-    """
-    Tarkistaa joukkueen rastileimaukset ja rastitiedot virheiden varalta.
-    Palauttaa True, jos kaikki tiedot ovat kunnossa, muuten False.
-    """
-    try:
-        # Tarkistetaan, että rastit ovat sanakirja
-        if not isinstance(rastit, dict):
-            # print("Virhe: Rastit eivät ole sanakirjassa.")
-            return False
-        
-        # Tarkistetaan, että jokaisella rastileimauksella on oikeat tiedot
-        for leimaus in joukkue["rastileimaukset"]:
-            # Tarkistetaan, että leimauksessa on rastiavain
-            if "rasti" not in leimaus:
-                # print(f"Virhe: Leimaus {leimaus} puuttuu 'rasti'-avain.")
-                return False
-            
-            # Tarkistetaan, että rastin avain löytyy rasteista
-            if leimaus["rasti"] not in rastit:
-                # print(f"Virhe: Rastin avain {leimaus['rasti']} ei löydy rastitiedoista.")
-                return False
-            
-            # Tarkistetaan, että aikaleima on oikeassa muodossa
-            if "aika" not in leimaus or not leimaus["aika"]:
-                # print(f"Virhe: Leimaukselta puuttuu aikaleima tai se on tyhjä: {leimaus}")
-                return False
-            try:
-                # Yritetään muuntaa aikaleima datetime-muotoon
-                datetime.strptime(leimaus["aika"], '%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                # print(f"Virheellinen aikaleiman muoto leimauksessa: {leimaus['aika']}")
-                return False
-
-        # print(f"Joukkue {joukkue['nimi']} on kunnossa.")
-        return True
-
-    except KeyError as e:
-        # print(f"Virhe: Joukkueelta puuttuu tarvittava avain: {str(e)}")
-        return False
-
-    except Exception as e:
-        # print(f"Virhe datan tarkistuksessa: {str(e)}")
-        return False
-
 def laskeAika(joukkue):
     """
     Taso 3
@@ -516,17 +470,15 @@ def laskeAika(joukkue):
         haluttuMaali_rasti = 'MAALI'
         viimeisinLahtoaika = None
         ensimmaisinMaaliaika = None
-        voittaneetLahtoJOukkueet = 0
-        voittaneetMaaliJoukkueet = 0
+        lahtoRastinKoodi = None
+        maaliRastinKoodi = None
 
-        #print(joukkue["rastileimaukset"])
-        # Etsi lähtö- ja maalirastit
-        #lahtoRastikoodi = next((avain for avain, rasti in rastit.items() if rasti["koodi"] == haluttuLahto_rasti), None)
-        #maaliRastiKoodi = next((avain for avain, rasti in rastit.items() if rasti["koodi"] == haluttuMaali_rasti), None)
-        # print(lahtoRastikoodi, maaliRastiKoodi)
-        # Tarkista leimaukset
-        #print(joukkue)
-       
+        for rastinId, rasti in rastit.items():
+            if rasti["koodi"] == haluttuLahto_rasti:
+                lahtoRastinKoodi = str(rastinId)
+            if rasti["koodi"] == haluttuMaali_rasti:
+                maaliRastinKoodi = str(rastinId)
+
         for leimaus in joukkue["rastileimaukset"]:
             try:
                 koodi = str(leimaus["rasti"]) 
@@ -536,31 +488,17 @@ def laskeAika(joukkue):
                     print("Puuttuva koodi tai aika joukkueelta: ", joukkue["nimi"])
                     continue
 
-                print(f"Joukkue: {joukkue['nimi']}, Rasti: {koodi}, Aika: {aika}")
+                if koodi == lahtoRastinKoodi:
+                    if viimeisinLahtoaika is None or aika > viimeisinLahtoaika:
+                        viimeisinLahtoaika = aika
 
-                # Tarkista lähtörasti
-                if koodi == "4821274903707648":
-                    viimeisinLahtoaika = aika
-                    voittaneetLahtoJOukkueet = 1
-
-                # Tarkista maalirasti
-                elif koodi == "6358096477683712":
-                    ensimmaisinMaaliaika = aika
-                    voittaneetMaaliJoukkueet = 1
-
-                # Jos molemmat ajat löytyivät tai leimaukset on käyty läpi
-                if viimeisinLahtoaika and ensimmaisinMaaliaika:
-                    print(f"Molemmat ajat löytyivät joukkueelta: {joukkue['nimi']}")
-                    break  # Molemmat ajat löytyivät, lopeta silmukka
+                elif koodi == maaliRastinKoodi:
+                    if ensimmaisinMaaliaika is None or aika < ensimmaisinMaaliaika:
+                        ensimmaisinMaaliaika = aika
+                
             except KeyError as e:
-                print(f"Virhe joukkueelta {joukkue['nimi']}: Leimauksessa {leimaus} puuttuu avain {str(e)}.")
+                print(f"Virhe joukkueelta {joukkue['nimi']}: Leimauksessa {leimaus} puuttuu avain {str(e)}, ei vaadi toimia.")
 
-        # Jos haluat tarkistaa, onko silmukka käyty läpi ilman molempia aikoja
-        if not (viimeisinLahtoaika and ensimmaisinMaaliaika):
-            print(f"Joukkueelta {joukkue['nimi']} ei löytynyt molempia aikoja.")
-
-        #print("joukkue: ", joukkue["nimi"], "lähtö: ", voittaneetLahtoJOukkueet, "ja maali: ", voittaneetMaaliJoukkueet)
-        # Laske kilpailuaika
         if viimeisinLahtoaika and ensimmaisinMaaliaika:
             maaliaikaObjekti = datetime.strptime(ensimmaisinMaaliaika, '%Y-%m-%d %H:%M:%S')                
             lahtoaikaObjekti = datetime.strptime(viimeisinLahtoaika, '%Y-%m-%d %H:%M:%S')  
@@ -630,41 +568,23 @@ def jarjestaJoukkueet():
           mediatyypin on oltava "application/json"
     """
     try:
-        # Oletetaan, että joukkueet on JSON-muodossa request.form["joukkueet"]
         joukkueet_data = request.form["joukkueet"]
-        # print("toimii1")
         
         try:
-            joukkueet = json.loads(joukkueet_data)  # Purkaa joukkueet
+            joukkueet = json.loads(joukkueet_data)
             
             if not isinstance(joukkueet, list):
                 return Response(json.dumps({"error": "joukkueet ei ole lista"}), mimetype="application/json"), 400
+            
         except json.JSONDecodeError:
-            print("ongelma jsonin kanssa")
             return Response(json.dumps({"error": "virheellinen JSON-data"}), mimetype="application/json"), 400
 
-        # print("toimii3")
-        rastit = json.loads(request.form["rastit"])
-        # Kutsutaan laskeAika -funktiota jokaiselle joukkueelle
-
-        
-        # Järjestetään joukkueet aakkosjärjestykseen nimen mukaan
         jarjestetytJoukkueet = sorted(joukkueet, key=lambda joukkue: joukkue["nimi"].strip().lower())
         print("joukkueita on: ", len(jarjestetytJoukkueet))
-        #print("lopulta jäljellä: ", len(jarjestetytJoukkueet))
+
         for joukkue in jarjestetytJoukkueet:
-            # print("montako: ", joukkue["nimi"])
-            # if tarkistaData(joukkue, rastit):
             laskeAika(joukkue)
-            # else:
-                # print(f"Virhe joukkueen {joukkue['nimi']} datassa, aikaa ei laskettu.")
-            # print("toimii4")
-
             
-        
-
-        
-        # Tallennetaan järjestetyt joukkueet JSON-muotoon
         return Response(json.dumps(jarjestetytJoukkueet), mimetype="application/json")
 
     except Exception as e:
